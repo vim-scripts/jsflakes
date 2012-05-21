@@ -12,15 +12,21 @@ Install
 
 3. Copy everything inside ftplugin to your __vimfiles/ftplugin__ directory
 
+4. Add following lines to your vimrc
+
+        filetype on
+        filetype plugin on
+
 Usage
 ============
 
 For javascript file, jsflakes will automaticlly check errors in your code while you editing. 
 
+The current errors are added to the window's location list.
 You can aslo use [quickfix commands](http://vimcdoc.sourceforge.net/doc/quickfix.html), like
 
-    :cl list errors in your javascript code
-    :clopen open quickfix window
+    :lli list errors in your javascript code
+    :lopen open location window
     
 Advance Usage
 ============

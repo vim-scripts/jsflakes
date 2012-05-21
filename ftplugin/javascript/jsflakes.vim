@@ -6,12 +6,24 @@
 "
 if exists("b:did_jsflakes_plugin")
     finish
-else
-    let b:did_jsflakes_plugin = 1
 endif
+
+" fail silently
+if exists("g:disabled_jsflakes_plugin") && g:disabled_jsflakes_plugin 
+    finish
+endif
+
+let b:did_jsflakes_plugin = 1
 
 if !exists("g:loaded_jsruntime")
     echoerr('jsruntime.vim is required, plz visit http://www.vim.org/scripts/script.php?script_id=4050')
+    finish
+endif
+
+if !g:loaded_jsruntime
+    echoerr("jsflakes disabled automaticly, because jsruntime.vim report not working properly")
+    " set a flag to disable jsfalkes
+    let g:disabled_jsflakes_plugin = 1
     finish
 endif
 
@@ -82,6 +94,9 @@ else
   let s:jshintrc = []
 end
 
+" :help augroup
+" :help autocmd-buflocal
+augroup jsflakes
 if &ft == 'html'
     au BufEnter <buffer> call s:htmlJSHint()
     au InsertLeave <buffer> call s:htmlJSHint()
@@ -94,6 +109,7 @@ else
     au BufWritePost <buffer> call s:JSHint(1)
     au CursorMoved <buffer> call s:GetJSHintMessage()
 endif
+augroup END
 
 " call jshint while content modified
 noremap <buffer><silent> dd dd:JSHintUpdate<CR>
@@ -117,7 +133,7 @@ if !exists('*s:JSHintClear')
         endif
       endfor
       let s:matchedlines = {}
-	  call setqflist([])
+	  call setloclist(0, [])
     endfunction
 endif
 
@@ -161,8 +177,8 @@ if !exists('*s:JSHint')
         endif
 
 
-		" Store quickfix list
-		let qf_list = []
+		" Store error list
+		let error_list = []
 
 		let lintscript = s:jshintrc + getline(startline, endline)
 		let js = js . printf(s:jshint_run,b:json_dump_string(lintscript))
@@ -196,20 +212,20 @@ if !exists('*s:JSHint')
 					endif
                     call matchadd('JSHintError', '\%' . line . 'l\S.*\(\S\|$\)')
 
-			    	" Store the error for quickfix window
-			    	let qf = {}
-			    	let qf.bufnr = bufnr('%')
-			    	let qf.filename = expand('%')
-			    	let qf.lnum = line
-			    	let qf.text = errorMessage
-			    	let qf.type = errorType
+			    	" Store the error for local window
+			    	let err = {}
+			    	let err.bufnr = bufnr('%')
+			    	let err.filename = expand('%')
+			    	let err.lnum = line
+			    	let err.text = errorMessage
+			    	let err.type = errorType
 
-					" Add line to quickfix list
-					call add(qf_list, qf)
+					" Add line to error list
+					call add(error_list, err)
 				endif
             endif
         endfor
-		call setqflist(qf_list, 'a')
+		call setloclist(0, error_list, 'a')
     endfunction
 endif
 
@@ -220,7 +236,12 @@ if !exists("*s:htmlJSHint")
     python << EOF
 import vim
 parser = htmlParser()
-parser.feed(vim.eval("join(getline(1,'$'),'\n')"))
+try:
+    parser.feed(vim.eval("join(getline(1,'$'),'\n')"))
+except Exception,e:
+    print "Hint: jsflakes.vim stops automaticlly, %s" % e
+    vim.command("au! jsflakes")
+	
 # start <script> end </script>
 if parser.lintableScripts:
     for start,end in parser.lintableScripts:
